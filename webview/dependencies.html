@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+
+  <script src="https://unpkg.com/cytoscape@3.5.3/dist/cytoscape.min.js"></script>
+
+  <script src="https://unpkg.com/dagre@0.7.4/dist/dagre.js"></script>
+  <script src="https://unpkg.com/cytoscape-dagre@2.2.2/cytoscape-dagre.js"></script>
+
+  <script src="https://unpkg.com/popper.js@1.15.0/dist/umd/popper.min.js"></script>
+  <script src="https://unpkg.com/tippy.js@4.2.1/umd/index.all.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-popper@1.0.4/cytoscape-popper.js"></script>
+  
+  <script src="https://unpkg.com/moment@2.14.1/min/moment.min.js"></script>
+
+  <style>
+    body.vscode-light,
+    body.vscode-dark {
+      color: gray;
+    }
+
+    body.vscode-high-contrast {
+      color: white;
+    }
+
+    code {
+      font-family: var(--vscode-editor-font-family);
+      font-weight: var(--vscode-editor-font-weight);
+    }
+
+    #cy {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 999;
+    }
+
+    #extra-info {
+      position: absolute;
+      bottom: 0;
+    }
+
+    td {
+      text-align: left;
+      vertical-align: top;
+    }
+  </style>
+
+  <script>
+    const cmakeData = ["%DATA%"];
+
+    function ignoreTarget(target) {
+      return target.isGeneratorProvided
+    }
+
+    const projectPrefix = '__PROJ_';
+
+    const targetMap = {};
+    for (let target of cmakeData.targets) {
+      targetMap[target.id] = target;
+    }
+
+    const filteredTargets = cmakeData.targets.filter(t => !ignoreTarget(t));
+    const projectIdxs = new Set(filteredTargets.map(t => t.projectIndex));
+    const showProjectCompoundNodes = projectIdxs.size > 1;
+
+    const nodes = filteredTargets.map(target => {
+      if (showProjectCompoundNodes) {
+        target.parent = projectPrefix + target.projectIndex.toString();
+      }
+      return {
+        data: target
+      };
+    });
+    
+    if (showProjectCompoundNodes) {
+      for (const projectIdx of projectIdxs) {
+        nodes.push({
+          data: {
+            type: 'project',
+            id: projectPrefix + projectIdx.toString(),
+            name: cmakeData.projectNames[projectIdx]
+          }
+        });
+      }
+    }
+
+    const edges = [];
+    for (const target of filteredTargets) {
+      for (const depId of target.dependencies) {
+        if (ignoreTarget(targetMap[depId])) continue;
+        edges.push({
+          data: { source: target.id, target: depId }
+        });
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', function () {
+      function showDataAge() {
+        const created = moment(cmakeData.created);
+        const now = moment();
+        const age = moment.duration(now.diff(created));
+        let ageText;
+        if (age.asSeconds() > 60) {
+          ageText = age.humanize() + ' old'
+        } else {
+          ageText = 'up-to-date'
+        }
+        document.getElementById('extra-info').innerHTML = 
+          'API Data: ' + ageText + '.';
+      }
+      showDataAge();
+      setInterval(showDataAge, 10000);
+
+      var cy = window.cy = cytoscape({
+        container: document.getElementById('cy'),
+
+        boxSelectionEnabled: false,
+        autounselectify: true,
+
+        wheelSensitivity: 0.5,
+
+        layout: {
+          name: 'dagre'
+        },
+
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'width': 'label',
+              'padding': 5,
+              'border-width': 0,
+              'label': 'data(name)',
+              'color': 'rgb(230, 230, 230)',
+              'text-valign': 'center',
+              'text-halign': 'center',
+              'font-family': 'Segoe UI'
+            }
+          },
+          {
+            selector: 'node[type = "EXECUTABLE"]',
+            style: {
+              'background-color': '#C83E25'
+            }
+          },
+          {
+            selector: 'node[type = "STATIC_LIBRARY"]',
+            style: {
+              'background-color': '#37A35C'
+            }
+          },
+          {
+            selector: 'node[type = "OBJECT_LIBRARY"]',
+            style: {
+              'background-color': '#37A35C',
+              'border-style': 'dashed',
+              'border-width': 3,
+              'border-color': 'gray'
+            }
+          },
+          {
+            selector: 'node[type = "SHARED_LIBRARY"]',
+            style: {
+              'background-color': '#33758B'
+            }
+          },
+          {
+            selector: 'node[type = "MODULE_LIBRARY"]',
+            style: {
+              'background-color': '#33758B'
+            }
+          },
+          {
+            selector: 'node[type = "UTILITY"]',
+            style: {
+              'background-color': '#707070'
+            }
+          },
+          {
+            selector: 'node[type = "project"]',
+            style: {
+              'shape': 'rectangle',
+              'text-valign': 'top',
+              'text-halign': 'center',
+              'background-opacity': 0,
+              'border-width': 2,
+              'border-color': 'red'
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 2,
+              'target-arrow-shape': 'triangle',
+              'line-color': 'gray',
+              'target-arrow-color': 'gray',
+              'curve-style': 'bezier'
+            }
+          }
+        ],
+
+        elements: {
+          nodes: nodes,
+          edges: edges
+        }
+      });
+
+      cy.$('node').on('grab', e => {
+        var ele = e.target;
+        ele.connectedEdges().style({ 'line-color': 'red', 'target-arrow-color': 'red' });
+      });
+
+      cy.$('node').on('free', e => {
+        var ele = e.target;
+        ele.connectedEdges().style({ 'line-color': 'gray', 'target-arrow-color': 'gray' });
+      });
+
+      cy.$('node').on('cxttap', e => {
+        var ele = e.target;
+        ele.remove();
+      });
+
+      function makeTippy(node, text) {
+        let ref = node.popperRef();
+        let tip = tippy(ref, {
+          content: () => {
+            let content = document.createElement('div');
+            content.innerHTML = text;
+            return content;
+          },
+          trigger: 'manual',
+          animation: 'fade',
+          arrow: true,
+        });
+        node.on('mouseover', () => tip.show());
+        node.on('mouseout', () => tip.hide());
+        node.on('grab', () => tip.hide());
+        return tip;
+      }
+
+      const typeLabels = {
+        'STATIC_LIBRARY': 'Static Library',
+        'SHARED_LIBRARY': 'Shared Library',
+        'MODULE_LIBRARY': 'Module Library',
+        'OBJECT_LIBRARY': 'Object Library',
+        'UTILITY': 'Utility',
+        'EXECUTABLE': 'Executable',
+      }
+
+      const languageLabels = {
+        'CXX': 'C++'
+      }
+
+      for (const node of cy.nodes().toArray()) {
+        const data = node.data()
+        if (data.type == 'project') {
+          continue;
+        }
+        const typeLabel = typeLabels[data.type]
+        let languages = data.languages.map(l => languageLabels[l] || l).join(', ');
+        if (languages) {
+          languages = ' (' + languages + ')';
+        }
+        let text = '<strong>' + typeLabel + languages + '</strong><br><br>';
+        text += '<table>';
+        text += '<tr><td>Definition:</td><td>' + data.definition + '</td><tr>';
+        if (data.nameOnDisk) {
+          text += '<tr><td>Filename:</td><td>' + data.nameOnDisk + '</td></tr>';
+        }
+        if (data.sources.length > 0) {
+          text += "<tr><td>Sources:</td><td>";
+          const filteredSources = data.sources.filter(s => !s.fromObjectLibrary);
+          const sources = filteredSources.slice(0, 10);
+          text += sources.map(s => (s.isGenerated ? '<i>' : '') + s.path + (s.isGenerated ? '</i>' : '')).join('<br>');
+          const remaining = filteredSources.length - sources.length;
+          if (remaining > 0) {
+            text += '<br> (' + remaining.toString() + ' more...)';
+          }
+          text += '</td></tr>';
+        }
+        text += '</table>';
+
+        makeTippy(node, text)
+      }
+
+      cy.minZoom(0.5);
+      cy.maxZoom(1.0);
+      cy.fit();
+      cy.maxZoom(2.0);
+
+    });
+  </script>
+</head>
+
+<body>
+  <p>
+    Note: <code>INTERFACE</code> and <code>IMPORTED</code> targets are not displayed.
+  </p>
+  <p id="extra-info"></p>
+  <div id="cy"></div>
+</body>
+
+</html>

@@ -1,0 +1,66 @@
+{
+  "name": "cmake-insights",
+  "displayName": "CMake Insights",
+  "description": "...",
+  "version": "0.1.0",
+  "author": {
+    "name": "Maik Riechert",
+    "url": "https://github.com/letmaik"
+  },
+  "publisher": "letmaik",
+  "license": "MIT",
+  "icon": "resources/logo.png",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "cmake",
+    "dependencies",
+    "visualization"
+  ],
+  "bugs": {
+    "url": "https://github.com/letmaik/vscode-cmake-insights/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/letmaik/vscode-cmake-insights.git"
+  },
+  "homepage": "https://github.com/letmaik/vscode-cmake-insights",
+  "engines": {
+    "vscode": "^1.33.0"
+  },
+  "activationEvents": [
+    "onCommand:cmakeInsights.showDependencies"
+  ],
+  "main": "./dist/extension",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cmakeInsights.showDependencies",
+        "title": "Show Dependencies",
+        "category": "CMake Insights"
+      }
+    ]
+  },
+  "dependencies": {
+    "glob": "^7.1.0",
+    "mkdirp": "^0.5.1"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.1",
+    "@types/mkdirp": "^0.5.2",
+    "@types/node": "^10.2.0",
+    "ts-loader": "^5.3.3",
+    "typescript": "^3.4.3",
+    "vscode": "^1.1.33",
+    "webpack": "^4.29.6",
+    "webpack-cli": "^3.3.0"
+  },
+  "scripts": {
+    "vscode:prepublish": "webpack --mode production",
+    "compile": "webpack --mode none",
+    "watch": "webpack --mode none --watch",
+    "test-compile": "tsc -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install"
+  }
+}

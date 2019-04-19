@@ -1,0 +1,3 @@
+Remove edges of transitive dependencies
+- Bug in CMake: https://gitlab.kitware.com/cmake/cmake/issues/19188
+
