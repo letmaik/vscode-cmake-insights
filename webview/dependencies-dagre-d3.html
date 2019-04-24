@@ -168,7 +168,7 @@
       g.setDefaultEdgeLabel(function() { return {curve: d3.curveBasis}; });
 
       for (const node of nodes) {
-        g.setNode(node.id, {label: node.name, class: "type-" + node.type, clusterLabelPos: 'top'});
+        g.setNode(node.id, {label: node.name, class: "type-" + node.type, clusterLabelPos: 'top', data: node});
         if (node.parent) {
           g.setParent(node.id, node.parent);
         }
@@ -196,25 +196,6 @@
       var offsetY = (svg.attr("height") - g.graph().height * initialScale) / 2;
       svg.call(zoom.transform, d3.zoomIdentity.translate(offsetX, offsetY).scale(initialScale));
 
-/*
-      function makeTippy(node, text) {
-        let ref = node.popperRef();
-        let tip = tippy(ref, {
-          content: () => {
-            let content = document.createElement('div');
-            content.innerHTML = text;
-            return content;
-          },
-          trigger: 'manual',
-          animation: 'fade',
-          arrow: true,
-        });
-        node.on('mouseover', () => tip.show());
-        node.on('mouseout', () => tip.hide());
-        node.on('grab', () => tip.hide());
-        return tip;
-      }
-
       const typeLabels = {
         'STATIC_LIBRARY': 'Static Library',
         'SHARED_LIBRARY': 'Shared Library',
@@ -227,40 +208,44 @@
       const languageLabels = {
         'CXX': 'C++'
       }
-
-      for (const node of cy.nodes().toArray()) {
-        const data = node.data()
-        if (data.type == 'project') {
-          continue;
-        }
-        const typeLabel = typeLabels[data.type]
-        let languages = data.languages.map(l => languageLabels[l] || l).join(', ');
-        if (languages) {
-          languages = ' (' + languages + ')';
-        }
-        let text = '<strong>' + typeLabel + languages + '</strong><br><br>';
-        text += '<table>';
-        text += '<tr><td>Definition:</td><td>' + data.definition + '</td><tr>';
-        if (data.nameOnDisk) {
-          text += '<tr><td>Filename:</td><td>' + data.nameOnDisk + '</td></tr>';
-        }
-        if (data.sources.length > 0) {
-          text += "<tr><td>Sources:</td><td>";
-          const filteredSources = data.sources.filter(s => !s.fromObjectLibrary);
-          const sources = filteredSources.slice(0, 10);
-          text += sources.map(s => (s.isGenerated ? '<i>' : '') + s.path + (s.isGenerated ? '</i>' : '')).join('<br>');
-          const remaining = filteredSources.length - sources.length;
-          if (remaining > 0) {
-            text += '<br> (' + remaining.toString() + ' more...)';
+      inner.selectAll("g.node")
+        .each(function(v) { 
+          const node = g.node(v);
+          const data = node.data
+          if (data.type == 'project') {
+            return;
           }
-          text += '</td></tr>';
-        }
-        text += '</table>';
+          const typeLabel = typeLabels[data.type];
+          let languages = data.languages.map(l => languageLabels[l] || l).join(', ');
+          if (languages) {
+            languages = ' (' + languages + ')';
+          }
+          let text = '<strong>' + typeLabel + languages + '</strong><br><br>';
+          text += '<table>';
+          text += '<tr><td>Definition:</td><td>' + data.definition + '</td><tr>';
+          if (data.nameOnDisk) {
+            text += '<tr><td>Filename:</td><td>' + data.nameOnDisk + '</td></tr>';
+          }
+          if (data.sources.length > 0) {
+            text += "<tr><td>Sources:</td><td>";
+            const filteredSources = data.sources.filter(s => !s.fromObjectLibrary);
+            const sources = filteredSources.slice(0, 10);
+            text += sources.map(s => (s.isGenerated ? '<i>' : '') + s.path + (s.isGenerated ? '</i>' : '')).join('<br>');
+            const remaining = filteredSources.length - sources.length;
+            if (remaining > 0) {
+              text += '<br> (' + remaining.toString() + ' more...)';
+            }
+            text += '</td></tr>';
+          }
+          text += '</table>';
 
-        makeTippy(node, text)
-      }
-*/
-
+          tippy(node.elem, {
+            content: text,
+            animation: 'fade',
+            arrow: true,
+          });
+        });
+      
     });
   </script>
 </head>
