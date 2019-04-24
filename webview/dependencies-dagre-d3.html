@@ -30,9 +30,19 @@
     code {
       font-family: var(--vscode-editor-font-family);
       font-weight: var(--vscode-editor-font-weight);
-   }
+    }
 
-    #svg {
+    #extra-info {
+      position: absolute;
+      bottom: 0;
+    }
+
+    td {
+      text-align: left;
+      vertical-align: top;
+    }
+
+    #graph {
       width: 100%;
       height: 100%;
       position: absolute;
@@ -40,7 +50,9 @@
       top: 0;
       z-index: 999;
     }
+  </style>
 
+  <style id="dagre-d3-style">
     .node rect {
       stroke: #333;
       fill: #fff;
@@ -89,16 +101,6 @@
       pointer-events: none;
       fill: rgb(230, 230, 230);
       font-family: 'Segoe UI';
-    }
-
-    #extra-info {
-      position: absolute;
-      bottom: 0;
-    }
-
-    td {
-      text-align: left;
-      vertical-align: top;
     }
   </style>
 
@@ -178,7 +180,7 @@
         g.setEdge(edge.source, edge.target);
       }
 
-      const svg = d3.select("svg");
+      const svg = d3.select("#graph");
       svg.attr("width", window.innerWidth)
          .attr("height", window.innerHeight);
       const inner = svg.append("g");
@@ -187,6 +189,8 @@
         inner.attr("transform", d3.event.transform);
       });
       svg.call(zoom);
+
+      // TODO highlight connected edges when tapping/holding node
 
       const render = new dagreD3.render();
       render(inner, g);
@@ -208,44 +212,48 @@
       const languageLabels = {
         'CXX': 'C++'
       }
-      inner.selectAll("g.node")
-        .each(function(v) { 
-          const node = g.node(v);
-          const data = node.data
-          if (data.type == 'project') {
-            return;
-          }
-          const typeLabel = typeLabels[data.type];
-          let languages = data.languages.map(l => languageLabels[l] || l).join(', ');
-          if (languages) {
-            languages = ' (' + languages + ')';
-          }
-          let text = '<strong>' + typeLabel + languages + '</strong><br><br>';
-          text += '<table>';
-          text += '<tr><td>Definition:</td><td>' + data.definition + '</td><tr>';
-          if (data.nameOnDisk) {
-            text += '<tr><td>Filename:</td><td>' + data.nameOnDisk + '</td></tr>';
-          }
-          if (data.sources.length > 0) {
-            text += "<tr><td>Sources:</td><td>";
-            const filteredSources = data.sources.filter(s => !s.fromObjectLibrary);
-            const sources = filteredSources.slice(0, 10);
-            text += sources.map(s => (s.isGenerated ? '<i>' : '') + s.path + (s.isGenerated ? '</i>' : '')).join('<br>');
-            const remaining = filteredSources.length - sources.length;
-            if (remaining > 0) {
-              text += '<br> (' + remaining.toString() + ' more...)';
-            }
-            text += '</td></tr>';
-          }
-          text += '</table>';
 
-          tippy(node.elem, {
-            content: text,
-            animation: 'fade',
-            arrow: true,
-          });
+      function getTooltipContent(data) {
+        const typeLabel = typeLabels[data.type];
+        let languages = data.languages.map(l => languageLabels[l] || l).join(', ');
+        if (languages) {
+          languages = ' (' + languages + ')';
+        }
+        let text = '<strong>' + typeLabel + languages + '</strong><br><br>';
+        text += '<table>';
+        text += '<tr><td>Definition:</td><td>' + data.definition + '</td><tr>';
+        if (data.nameOnDisk) {
+          text += '<tr><td>Filename:</td><td>' + data.nameOnDisk + '</td></tr>';
+        }
+        if (data.sources.length > 0) {
+          text += "<tr><td>Sources:</td><td>";
+          const filteredSources = data.sources.filter(s => !s.fromObjectLibrary);
+          const sources = filteredSources.slice(0, 10);
+          text += sources.map(s => (s.isGenerated ? '<i>' : '') + s.path + (s.isGenerated ? '</i>' : '')).join('<br>');
+          const remaining = filteredSources.length - sources.length;
+          if (remaining > 0) {
+            text += '<br> (' + remaining.toString() + ' more...)';
+          }
+          text += '</td></tr>';
+        }
+        text += '</table>';
+        return text;
+      }
+
+      inner.selectAll("g.node").each(v => { 
+        const node = g.node(v);
+        const data = node.data
+        if (data.type == 'project') {
+          return;
+        }
+        const text = getTooltipContent(data);
+
+        tippy(node.elem, {
+          content: text,
+          animation: 'fade',
+          arrow: true,
         });
-      
+      });
     });
   </script>
 </head>
@@ -255,7 +263,7 @@
     Note: <code>INTERFACE</code> and <code>IMPORTED</code> targets are not displayed.
   </p>
   <p id="extra-info"></p>
-  <svg id="svg"></svg>
+  <svg id="graph"></svg>
 </body>
 
 </html>

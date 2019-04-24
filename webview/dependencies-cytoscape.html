@@ -32,15 +32,6 @@
       font-weight: var(--vscode-editor-font-weight);
     }
 
-    #cy {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      left: 0;
-      top: 0;
-      z-index: 999;
-    }
-
     #extra-info {
       position: absolute;
       bottom: 0;
@@ -49,6 +40,77 @@
     td {
       text-align: left;
       vertical-align: top;
+    }
+
+    #graph {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 999;
+    }
+  </style>
+
+  <style id="cytoscape-style" type="text/cytoscape-style">
+    node {
+      width: label;
+      padding: 5;
+      border-width: 0;
+      label: data(name);
+      color: rgb(230, 230, 230);
+      text-valign: center;
+      text-halign: center;
+      font-family: Segoe UI;
+    }
+    
+    node[type = "EXECUTABLE"] {
+      background-color: #C83E25;
+    }
+
+    node[type = "STATIC_LIBRARY"] {
+      background-color: #37A35C;
+    }
+
+    node[type = "OBJECT_LIBRARY"] {
+      background-color: #37A35C;
+      border-style: dashed;
+      border-width: 3;
+      border-color: gray;
+    }
+
+    node[type = "SHARED_LIBRARY"] {
+      background-color: #33758B;
+    }
+
+    node[type = "MODULE_LIBRARY"] {
+      background-color: #33758B;
+    }
+
+    node[type = "UTILITY"] {
+      background-color: #707070;
+    }
+
+    node[type = "project"] {
+      shape: rectangle;
+      text-valign: top;
+      text-halign: center;
+      background-opacity: 0;
+      border-width: 2;
+      border-color: red;
+    }
+
+    edge {
+      width: 2;
+      target-arrow-shape: triangle;
+      line-color: gray;
+      target-arrow-color: gray;
+      curve-style: bezier;
+    }
+
+    edge.highlight {
+      line-color: red;
+      target-arrow-color: red;
     }
   </style>
 
@@ -74,19 +136,15 @@
       if (showProjectCompoundNodes) {
         target.parent = projectPrefix + target.projectIndex.toString();
       }
-      return {
-        data: target
-      };
+      return target;
     });
     
     if (showProjectCompoundNodes) {
       for (const projectIdx of projectIdxs) {
         nodes.push({
-          data: {
-            type: 'project',
-            id: projectPrefix + projectIdx.toString(),
-            name: cmakeData.projectNames[projectIdx]
-          }
+          type: 'project',
+          id: projectPrefix + projectIdx.toString(),
+          name: cmakeData.projectNames[projectIdx]
         });
       }
     }
@@ -96,7 +154,7 @@
       for (const depId of target.dependencies) {
         if (ignoreTarget(targetMap[depId])) continue;
         edges.push({
-          data: { source: target.id, target: depId }
+          source: target.id, target: depId
         });
       }
     }
@@ -118,8 +176,20 @@
       showDataAge();
       setInterval(showDataAge, 10000);
 
+      const style = document.getElementById('cytoscape-style').innerText;
+
+      const cyNodes = [];
+      for (const node of nodes) {
+        cyNodes.push({data: node});
+      }
+
+      const cyEdges = [];
+      for (const edge of edges) {
+        cyEdges.push({data: edge});
+      }
+
       var cy = window.cy = cytoscape({
-        container: document.getElementById('cy'),
+        container: document.getElementById('graph'),
 
         boxSelectionEnabled: false,
         autounselectify: true,
@@ -130,120 +200,28 @@
           name: 'dagre'
         },
 
-        style: [
-          {
-            selector: 'node',
-            style: {
-              'width': 'label',
-              'padding': 5,
-              'border-width': 0,
-              'label': 'data(name)',
-              'color': 'rgb(230, 230, 230)',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'font-family': 'Segoe UI'
-            }
-          },
-          {
-            selector: 'node[type = "EXECUTABLE"]',
-            style: {
-              'background-color': '#C83E25'
-            }
-          },
-          {
-            selector: 'node[type = "STATIC_LIBRARY"]',
-            style: {
-              'background-color': '#37A35C'
-            }
-          },
-          {
-            selector: 'node[type = "OBJECT_LIBRARY"]',
-            style: {
-              'background-color': '#37A35C',
-              'border-style': 'dashed',
-              'border-width': 3,
-              'border-color': 'gray'
-            }
-          },
-          {
-            selector: 'node[type = "SHARED_LIBRARY"]',
-            style: {
-              'background-color': '#33758B'
-            }
-          },
-          {
-            selector: 'node[type = "MODULE_LIBRARY"]',
-            style: {
-              'background-color': '#33758B'
-            }
-          },
-          {
-            selector: 'node[type = "UTILITY"]',
-            style: {
-              'background-color': '#707070'
-            }
-          },
-          {
-            selector: 'node[type = "project"]',
-            style: {
-              'shape': 'rectangle',
-              'text-valign': 'top',
-              'text-halign': 'center',
-              'background-opacity': 0,
-              'border-width': 2,
-              'border-color': 'red'
-            }
-          },
-          {
-            selector: 'edge',
-            style: {
-              'width': 2,
-              'target-arrow-shape': 'triangle',
-              'line-color': 'gray',
-              'target-arrow-color': 'gray',
-              'curve-style': 'bezier'
-            }
-          }
-        ],
+        style: style,
 
         elements: {
-          nodes: nodes,
-          edges: edges
+          nodes: cyNodes,
+          edges: cyEdges
         }
       });
 
       cy.$('node').on('grab', e => {
         var ele = e.target;
-        ele.connectedEdges().style({ 'line-color': 'red', 'target-arrow-color': 'red' });
+        ele.connectedEdges().addClass('highlight');
       });
 
       cy.$('node').on('free', e => {
         var ele = e.target;
-        ele.connectedEdges().style({ 'line-color': 'gray', 'target-arrow-color': 'gray' });
+        ele.connectedEdges().removeClass('highlight');
       });
 
       cy.$('node').on('cxttap', e => {
         var ele = e.target;
         ele.remove();
       });
-
-      function makeTippy(node, text) {
-        let ref = node.popperRef();
-        let tip = tippy(ref, {
-          content: () => {
-            let content = document.createElement('div');
-            content.innerHTML = text;
-            return content;
-          },
-          trigger: 'manual',
-          animation: 'fade',
-          arrow: true,
-        });
-        node.on('mouseover', () => tip.show());
-        node.on('mouseout', () => tip.hide());
-        node.on('grab', () => tip.hide());
-        return tip;
-      }
 
       const typeLabels = {
         'STATIC_LIBRARY': 'Static Library',
@@ -258,12 +236,8 @@
         'CXX': 'C++'
       }
 
-      for (const node of cy.nodes().toArray()) {
-        const data = node.data()
-        if (data.type == 'project') {
-          continue;
-        }
-        const typeLabel = typeLabels[data.type]
+      function getTooltipContent(data) {
+        const typeLabel = typeLabels[data.type];
         let languages = data.languages.map(l => languageLabels[l] || l).join(', ');
         if (languages) {
           languages = ' (' + languages + ')';
@@ -286,6 +260,29 @@
           text += '</td></tr>';
         }
         text += '</table>';
+        return text;
+      }
+
+      function makeTippy(node, text) {
+        let ref = node.popperRef();
+        let tip = tippy(ref, {
+          content: text,
+          trigger: 'manual',
+          animation: 'fade',
+          arrow: true,
+        });
+        node.on('mouseover', () => tip.show());
+        node.on('mouseout', () => tip.hide());
+        node.on('grab', () => tip.hide());
+        return tip;
+      }
+
+      for (const node of cy.nodes().toArray()) {
+        const data = node.data()
+        if (data.type == 'project') {
+          continue;
+        }
+        const text = getTooltipContent(data);
 
         makeTippy(node, text)
       }
@@ -304,7 +301,7 @@
     Note: <code>INTERFACE</code> and <code>IMPORTED</code> targets are not displayed.
   </p>
   <p id="extra-info"></p>
-  <div id="cy"></div>
+  <div id="graph"></div>
 </body>
 
 </html>
