@@ -146,7 +146,7 @@ function getWebviewData(codemodel: any): WebviewData {
 
 async function getWebviewContent(data: any): Promise<string> {
     const dataJson = JSON.stringify(data, null, 1);
-    const htmlPath = path.join(EXTENSION_PATH, 'webview', 'dependencies-dagre-d3.html');
+    const htmlPath = path.join(EXTENSION_PATH, 'webview', 'dependencies.html');
     let html = await fs.readFile(htmlPath, 'utf8');
     html = html.replace('["%DATA%"]', dataJson);
     return html;
